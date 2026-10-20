@@ -46,6 +46,7 @@ import {
   filterStateReducer,
   selectQuickFilters,
 } from '../../features/scan/filterState';
+import BrokerRefreshPanel from '../BrokerRefreshPanel';
 import { PageSkeleton } from '../../components/common/LoadingSkeletons';
 
 const HYDRATION_BATCH_SIZE = 2;
@@ -355,6 +356,7 @@ function StaticScanPage() {
 
   return (
     <Box>
+      <BrokerRefreshPanel market={selectedMarket} rows={pagedRows} />
       <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}>
         Daily Scan
       </Typography>
