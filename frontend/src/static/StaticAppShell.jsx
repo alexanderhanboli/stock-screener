@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import StaticLayout from './StaticLayout';
+import ParentRouteBridge from './ParentRouteBridge';
 import { PageSkeleton } from '../components/common/LoadingSkeletons';
 import StaticHomePage from './pages/StaticHomePage';
 import StaticScanPage from './pages/StaticScanPage';
@@ -48,6 +49,7 @@ function StaticAppContent() {
 function StaticAppShell() {
   return (
     <Router>
+      <ParentRouteBridge />
       <StaticAppContent />
     </Router>
   );
