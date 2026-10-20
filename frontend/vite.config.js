@@ -8,14 +8,15 @@ import { SITE_DESCRIPTION as STATIC_DESCRIPTION, SITE_NAME, SITE_TITLE as STATIC
 
 // Search and link-preview tags for the public static demo only; the self-hosted
 // app keeps its plain index.html. og:image must be absolute, so it needs VITE_SITE_URL.
-const staticSiteMetaPlugin = (siteUrl) => ({
+const staticSiteMetaPlugin = (siteUrl, siteName = SITE_NAME) => ({
   name: 'static-site-meta',
   transformIndexHtml(html) {
+    const title = siteName === SITE_NAME ? STATIC_TITLE : `${siteName}: daily stock scans, breadth and group rankings`;
     const meta = [
       ['name', 'description', STATIC_DESCRIPTION],
       ['property', 'og:type', 'website'],
-      ['property', 'og:site_name', SITE_NAME],
-      ['property', 'og:title', STATIC_TITLE],
+      ['property', 'og:site_name', siteName],
+      ['property', 'og:title', title],
       ['property', 'og:description', STATIC_DESCRIPTION],
       ['name', 'twitter:card', 'summary_large_image'],
       ...(siteUrl ? [
@@ -26,7 +27,7 @@ const staticSiteMetaPlugin = (siteUrl) => ({
       ] : []),
     ];
     return {
-      html: html.replace(/<title>.*<\/title>/, `<title>${STATIC_TITLE}</title>`),
+      html: html.replace(/<title>.*<\/title>/, `<title>${title}</title>`),
       tags: meta.map(([key, value, content]) => ({
         tag: 'meta', attrs: { [key]: value, content }, injectTo: 'head',
       })),
@@ -46,7 +47,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       optionsValidatorsPlugin(),
-      ...(env.VITE_STATIC_SITE === 'true' ? [staticSiteMetaPlugin(siteUrl)] : []),
+      ...(env.VITE_STATIC_SITE === 'true' ? [staticSiteMetaPlugin(siteUrl, env.VITE_STATIC_SITE_NAME || SITE_NAME)] : []),
     ],
     test: {
       environment: 'jsdom',

@@ -36,6 +36,7 @@ import {
 } from './dataClient';
 import { useStaticGenerationLifecycle } from './useStaticGenerationLifecycle';
 import { REPO_URL, SITE_NAME, SITE_TITLE } from './siteMeta';
+import { STATIC_CHINESE_NAV, STATIC_DATA_NOTICE, STATIC_NAV_LABELS } from './siteCustomization';
 import { marketFlag } from '../utils/marketFlags';
 import { isStaticOptionsAvailable } from '../features/options/optionsAvailability';
 
@@ -73,7 +74,8 @@ function StaticLayout({ children }) {
   const now = useMinuteClock();
   const status = selectedUnavailable ? null : publicationStatus(marketEntry.publication, now);
   const allNavItems = [...CORE_NAV_ITEMS, { path: '/options', label: 'Options', matchPrefix: true, icon: <CandlestickChartIcon /> }];
-  const navItems = isStaticOptionsAvailable(marketEntry) ? allNavItems : CORE_NAV_ITEMS;
+  const navItems = (isStaticOptionsAvailable(marketEntry) ? allNavItems : CORE_NAV_ITEMS)
+    .map((item) => ({ ...item, label: STATIC_NAV_LABELS[item.path] || item.label }));
   const { pathname } = useLocation();
   // Title from every route: /options still renders (an unavailable notice) when its nav item is hidden.
   const pageLabel = allNavItems.find((item) => (
@@ -98,7 +100,7 @@ function StaticLayout({ children }) {
           {isMobile ? (
             <LockOutlinedIcon role="img" aria-label="Read-only" titleAccess="Read-only" sx={{ fontSize: 18, color: 'text.secondary' }} />
           ) : (
-            <Chip label="Read-only" size="small" variant="outlined" />
+            <Chip label={STATIC_CHINESE_NAV ? '每日快照 · 只读' : 'Read-only'} size="small" variant="outlined" />
           )}
           <FormControl size="small" sx={{ minWidth: { xs: 0, md: 140 } }}>
             <Select
@@ -165,6 +167,7 @@ function StaticLayout({ children }) {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ ...safeGutters, mt: 1.5, mb: 1.5, flex: 1, pb: { xs: mobileNavOffset(8), md: 0 } }}>
+        {STATIC_DATA_NOTICE && <Alert severity="info" sx={{ mb: 1.5 }}>{STATIC_DATA_NOTICE}</Alert>}
         {expired && (
           <Alert
             severity="info"

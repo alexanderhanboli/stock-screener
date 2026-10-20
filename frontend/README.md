@@ -7,6 +7,7 @@ References:
 - [Project overview](../README.md)
 - [Live app guide](../docs/LIVE_APP_GUIDE.md)
 - [Static site guide](../docs/STATIC_SITE.md)
+- [Optional Hengyuan static branding and embedding](../docs/HENGYUAN_STATIC_INTEGRATION.md)
 - [Architecture](../docs/ARCHITECTURE.md)
 - [Backend README](../backend/README.md)
 
