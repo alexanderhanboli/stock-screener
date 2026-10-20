@@ -33,3 +33,9 @@ node --test integrations/hengyuan/screener-route.test.mjs
 cd frontend
 npm run test:run -- src/static/BrokerRefreshPanel.test.jsx src/static/dataClient.test.js src/static/StaticMarketContext.test.jsx src/static/StaticLayout.test.jsx
 ```
+
+## Rule-based selection explanations
+
+Click a stock row/ticker to open the Chinese selection explanation. No LLM, broker or explanation endpoint is called: the panel reuses the same `evaluateExpression`/`evaluateCondition` functions as filtering, showing required conditions, AND/OR group outcomes, actual field values and the current ranking criterion. Ranking is not presented as a passed filter or a buy recommendation. Rows without chart data still open explanations; the chart icon and dialog chart button retain chart access.
+
+Original per-model scores, trend/growth/pattern observations, failed trend/readiness checks, event risk and field-availability gaps are rendered from the already loaded daily snapshot. Missing values are not zero, comparable-period growth is not relabelled quarterly growth, local turnover currencies are retained, and no scoring contribution or missing-field score penalty is inferred. The daily date is shown separately from unknown financial reporting dates and broker supplements. This feature does not recompute scores or claim predictive probabilities.

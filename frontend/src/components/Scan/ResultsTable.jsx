@@ -387,6 +387,7 @@ const ResultRow = styled(TableRow)(({ theme }) => ({
 const VirtualTableRow = memo(function VirtualTableRow({
   row,
   onRowClick,
+  onOpenReason,
   onRowHover,
   onOpenChart,
   showActions,
@@ -398,11 +399,10 @@ const VirtualTableRow = memo(function VirtualTableRow({
 }) {
   const statusChip = getStatusChipProps(row);
   const handleRowClick = useCallback(() => {
-    if (!chartEnabled) {
-      return;
-    }
+    if (onOpenReason) { onOpenReason(row.symbol); return; }
+    if (!chartEnabled) return;
     onRowClick?.(row.symbol);
-  }, [chartEnabled, onRowClick, row.symbol]);
+  }, [chartEnabled, onRowClick, onOpenReason, row.symbol]);
 
   const handleRowHover = useCallback(() => {
     onRowHover?.(row.symbol);
@@ -427,7 +427,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
       hover
       onClick={handleRowClick}
       onMouseEnter={handleRowHover}
-      className={onRowClick && chartEnabled ? 'rt-clickable' : undefined}
+      className={onOpenReason || (onRowClick && chartEnabled) ? 'rt-clickable' : undefined}
     >
       {showActions && (
         <TableCell align="center" onClick={stopPropagation} className="rt-p2 rt-w60">
@@ -447,7 +447,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
       <TableCell className="rt-symbol">
         <div className="rt-sym-stack">
           <div className="rt-sym-line">
-            <Typography component="span" variant="body2" className="rt-sym-text">
+            <Typography component={onOpenReason ? 'button' : 'span'} type={onOpenReason ? 'button' : undefined} onClick={onOpenReason ? (e)=>{e.stopPropagation();onOpenReason(row.symbol)} : undefined} aria-label={onOpenReason ? `${row.symbol} 入选原因` : undefined} sx={onOpenReason ? {background:'none',border:0,color:'inherit',font:'inherit',cursor:'pointer',minHeight:44,p:0} : undefined} variant="body2" className="rt-sym-text">
               {row.symbol}
             </Typography>
             <MarketBadge market={row.market} exchange={row.exchange} />
@@ -742,6 +742,7 @@ function ResultsTable({
   onPerPageChange,
   onSortChange,
   onOpenChart,
+  onOpenReason,
   loading,
   onRowHover,
   showActions = true,
@@ -792,8 +793,8 @@ function ResultsTable({
   }, [sortBy, sortOrder, onSortChange]);
 
   const handleRowClick = useCallback((symbol) => {
-    onOpenChart?.(symbol);
-  }, [onOpenChart]);
+    if(onOpenReason)onOpenReason(symbol);else onOpenChart?.(symbol);
+  }, [onOpenChart,onOpenReason]);
 
   // Virtualize rows - only render visible rows plus overscan
   const rowVirtualizer = useVirtualizer({
@@ -956,7 +957,8 @@ function ResultsTable({
                         {showActions && showWatchlistMenu ? <AddToWatchlistMenu symbols={row.symbol} size="small" /> : null}
                       </>
                     )}
-                    onOpen={chartEnabled ? () => handleRowClick(row.symbol) : null}
+                    openLabel={onOpenReason ? `${row.symbol} 入选原因` : null}
+                    onOpen={onOpenReason || chartEnabled ? () => handleRowClick(row.symbol) : null}
                   />
                 </Box>
               );
@@ -1041,6 +1043,7 @@ function ResultsTable({
                   key={row.symbol}
                   row={row}
                   onRowClick={onOpenChart ? handleRowClick : null}
+                  onOpenReason={onOpenReason}
                   onRowHover={onRowHover}
                   onOpenChart={onOpenChart}
                   showActions={showActions}

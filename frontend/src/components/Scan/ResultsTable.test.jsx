@@ -62,6 +62,18 @@ const defaultProps = {
 };
 
 describe('ResultsTable', () => {
+  it('opens deterministic reasons even when chart data is absent', () => {
+    const onOpenReason = vi.fn();const onOpenChart=vi.fn();
+    renderWithProviders(<ResultsTable {...defaultProps} onOpenReason={onOpenReason} onOpenChart={onOpenChart} isChartEnabled={()=>false} />);
+    fireEvent.click(screen.getByRole('button',{name:`${fullSeRow.symbol} 入选原因`}));
+    expect(onOpenReason).toHaveBeenCalledWith(fullSeRow.symbol);expect(onOpenChart).not.toHaveBeenCalled();
+  });
+  it('keeps the existing chart icon separate from reason selection', () => {
+    const onOpenReason=vi.fn(),onOpenChart=vi.fn();
+    const {container}=renderWithProviders(<ResultsTable {...defaultProps} onOpenReason={onOpenReason} onOpenChart={onOpenChart} />);
+    fireEvent.click(container.querySelector('.rt-chart-button'));
+    expect(onOpenChart).toHaveBeenCalledWith(fullSeRow.symbol);expect(onOpenReason).not.toHaveBeenCalled();
+  });
   it('rerenders a retained row when matched setups change', () => {
     const firstRow = {
       ...fullSeRow,
