@@ -34,3 +34,13 @@ test('full pipeline: owner scope, offline recovery, deduplication, exact task an
  const status=await (await screenerRoute(new Request(origin+'/api/screener/pipeline/status'),env)).json();assert.equal(status.job.payload.url,'https://github.com/alexanderhanboli/stock-screener/actions/runs/123');
  assert.equal((await screenerRoute(request('pipeline/result',{id:queued.job.id,result:{state:'completed',runId:'123'}}),env)).status,200);
 });
+
+test('public market dataset proxies use distinct fixed origins and never fall back',async()=>{
+ const seen=[],original=globalThis.fetch;globalThis.fetch=async url=>{seen.push(url);return Response.json({}, {status:url.includes('alexanderhanboli')?404:200})};
+ try{
+  assert.equal((await screenerRoute(new Request(origin+'/api/screener/own-data/manifest.json'),{})).status,404);
+  assert.equal((await screenerRoute(new Request(origin+'/screener-original/static-data/manifest.json'),{})).status,200);
+  assert.match(seen[0],/^https:\/\/alexanderhanboli.github.io/);assert.match(seen[1],/^https:\/\/xang1234.github.io/);assert.equal(seen.length,2);
+  assert.equal((await screenerRoute(new Request(origin+'/api/screener/own-data/a..b.json'),{})).status,400);
+ }finally{globalThis.fetch=original}
+});

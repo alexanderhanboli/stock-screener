@@ -11,6 +11,15 @@ export function cleanResult(result,job){
 }
 export async function screenerRoute(request,env){
  const url=new URL(request.url),path=url.pathname,db=env.DB;
+ if(path.startsWith('/api/screener/own-data/')||path.startsWith('/screener-original/static-data/')){
+  if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  const original=path.startsWith('/screener-original/static-data/');
+  const key=path.slice((original?'/screener-original/static-data/':'/api/screener/own-data/').length);
+  if(!/^[a-zA-Z0-9_./-]+\.json$/.test(key)||key.includes('..')||key.includes('//'))return new Response('Invalid path',{status:400});
+  const upstream=await fetch((original?'https://xang1234.github.io/stock-screener/static-data/':'https://alexanderhanboli.github.io/stock-screener/static-data/')+key,{headers:{Accept:'application/json'},cache:'no-store'});
+  return new Response(request.method==='HEAD'?null:upstream.body,{status:upstream.status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+ }
+
  if(path.startsWith('/api/screener/pipeline/'))return pipelineRoute(request,env);
  const json=(d,s=200)=>Response.json(d,{status:s,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  if(!db)return json({error:'扫描存储不可用'},503);
