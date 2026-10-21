@@ -1,3 +1,4 @@
+import PipelinePanel from './PipelinePanel';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -167,6 +168,7 @@ function StaticLayout({ children }) {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ ...safeGutters, mt: 1.5, mb: 1.5, flex: 1, pb: { xs: mobileNavOffset(8), md: 0 } }}>
+        <PipelinePanel />
         {STATIC_DATA_NOTICE && <Alert severity="info" sx={{ mb: 1.5 }}>{STATIC_DATA_NOTICE}</Alert>}
         {expired && (
           <Alert

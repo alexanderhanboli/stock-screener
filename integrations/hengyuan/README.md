@@ -39,3 +39,45 @@ npm run test:run -- src/static/BrokerRefreshPanel.test.jsx src/static/dataClient
 Click a stock row/ticker to open the Chinese selection explanation. No LLM, broker or explanation endpoint is called: the panel reuses the same `evaluateExpression`/`evaluateCondition` functions as filtering, showing required conditions, AND/OR group outcomes, actual field values and the current ranking criterion. Ranking is not presented as a passed filter or a buy recommendation. Rows without chart data still open explanations; the chart icon and dialog chart button retain chart access.
 
 Original per-model scores, trend/growth/pattern observations, failed trend/readiness checks, event risk and field-availability gaps are rendered from the already loaded daily snapshot. Missing values are not zero, comparable-period growth is not relabelled quarterly growth, local turnover currencies are retained, and no scoring contribution or missing-field score penalty is inferred. The daily date is shown separately from unknown financial reporting dates and broker supplements. This feature does not recompute scores or claim predictive probabilities.
+
+
+## Independent original-score pipeline
+
+Two separately built interfaces are hosted under `/screener-original/` (unmodified
+upstream UI, upstream published dataset) and `/screener/` (this fork's UI and its
+own published dataset). The latter uses the same original scoring implementation,
+not a different fast score. `VITE_OWN_PIPELINE=true` exposes the independent
+request queue and `VITE_STATIC_DATA_URL=/api/screener/own-data/` reads only this
+fork's GitHub Pages data. It never silently substitutes upstream results.
+
+The initial weekly reference and two-year price releases are public upstream
+baselines copied with manifest SHA256 verification. Later daily/weekly jobs use
+`GITHUB_DATA_REPOSITORY=${{ github.repository }}` to read and publish this fork's
+own release assets. Underlying fundamental reporting dates remain unchanged until
+the actual provider refresh succeeds. Options analytics is disabled for this
+three-market stock workflow; original stock scores are retained.
+
+The local worker accepts one full three-market request at a time. It refreshes
+SPY/IVV benchmark histories through two fixed Robinhood market getters, publishes
+only public OHLCV to this fork's data release, then dispatches `static-site.yml`
+on `main`. The importer rejects synthetic bars and only imports complete series
+whose last real bar matches the official close date. Whole benchmark series are
+replaced to avoid splicing adjustment conventions. Robinhood split-adjusted data
+is explicitly identified and may differ from Yahoo dividend-adjusted history.
+The original benchmark resolver can use IVV when SPY is stale; no freshness guard
+is disabled. A rejected benchmark does not become a fake current score.
+
+The Mac is needed to submit broker-backed requests. After dispatch, GitHub computes
+in the background. A run can take tens of minutes to hours. The queue reports
+producer completion separately from publisher completion; reloading only reads
+published data. Existing scheduled daily and weekly workflows are retained.
+`pipeline_gateway.py` requires the existing local `gh` login; broker credentials
+stay in Keychain. No account records, positions, or credentials are uploaded.
+
+Deployment: copy the route module into the private Site, route `/api/screener/*`,
+install all four Python files (`refresh_worker.py`, `broker_gateway.py`,
+`pipeline_gateway.py`, `import_benchmark.py`) beside each other for reproducibility
+(the importer executes in GitHub, the other three execute locally). Build upstream
+from a pinned source commit with base `/screener-original/`; preserve that commit
+in the Site's `screener-sources.json` alongside this fork's build commit. The
+parent `site-shell.js` supplies the two-mode switch with distinct iframe paths.

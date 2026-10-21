@@ -14,9 +14,26 @@ def main():
  with lockpath.open('w') as lock:
   try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
   except BlockingIOError:return
+  pipeline_poll=0
   while True:
    try:
     job=call('agent',{}) .get('job')
+    if time.monotonic()-pipeline_poll>60:
+     pipeline_poll=time.monotonic()
+     task=call('pipeline/agent',{}).get('job')
+     if task:
+      pipeline_command=command.copy();pipeline_command[1]=str(Path(command[1]).with_name('pipeline_gateway.py'))
+      body={'operation':task['operation'],'id':task['id'],'runId':(task.get('payload') or {}).get('runId')}
+      try:
+       done=subprocess.run(pipeline_command,input=json.dumps(body),capture_output=True,text=True,timeout=160)
+       if done.returncode:raise RuntimeError('Pipeline runner failed')
+       result=json.loads(done.stdout)
+      except Exception:
+       # A dispatch may have succeeded; retain its identifier and resolve status
+       # on the next poll instead of dispatching a duplicate or claiming failure.
+       result={'state':'dispatched','runId':body['runId'],'errors':['运行记录暂不可读，正在重连；不会重复发起扫描。']}
+      call('pipeline/result',{'id':task['id'],'result':result})
+      call('agent',{'claim':False})
     if job:
      start=time.monotonic();process=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
      payload=json.dumps({'market':job['market'],'symbols':job['symbols']})
