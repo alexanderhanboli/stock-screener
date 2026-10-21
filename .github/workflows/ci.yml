@@ -256,6 +256,10 @@ jobs:
       - name: Test (shard ${{ matrix.shard }}/2)
         run: cd frontend && npm run test:run -- --shard=${{ matrix.shard }}/2
 
+      - name: Private scanner queue and result validation
+        if: matrix.shard == 1
+        run: node --test integrations/hengyuan/screener-route.test.mjs
+
   frontend-e2e:
     name: Frontend E2E
     runs-on: ubuntu-latest

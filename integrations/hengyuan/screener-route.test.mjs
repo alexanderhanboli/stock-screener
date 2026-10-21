@@ -17,3 +17,5 @@ test('on demand queue: heartbeat, owner request, claim, result, timeout identity
  const result=await (await screenerRoute(new Request(origin+'/api/screener/status?market=US'),env)).json();assert.equal(result.job.state,'completed');assert.equal(result.result.rows[0].price,100);
  assert.equal((await screenerRoute(request('result',{id:claimed.job.id,result:{}}),env)).status,409)
 });
+
+test('reported institutional ownership above 100 is retained instead of rejecting the batch',()=>{const job={market:'US',requested_at:now,symbols:'["AAPL"]'};const result=cleanResult({capturedAt:now,rows:[{symbol:'AAPL',institutional_ownership:110}],errors:[]},job);assert.equal(result.rows[0].institutional_ownership,110)});

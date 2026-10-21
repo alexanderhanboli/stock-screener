@@ -3,16 +3,17 @@ import {Alert, Box, Button, Table, TableBody, TableCell, TableHead, TableRow, Ty
 export const BROKER_REFRESH_ENABLED = import.meta.env.VITE_BROKER_REFRESH === 'true';
 const labels={US:'Robinhood',HK:'富途',CN:'富途'};
 export default function BrokerRefreshPanel({market,rows}){
- const [state,setState]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const [state,setState]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[pollJob,setPollJob]=useState(null);
+ const requestVersion=useRef(0);
  const current=useRef(market);current.current=market;
- useEffect(()=>{setState(null);setError('');setBusy(false)},[market]);
- useEffect(()=>{if(!busy)return;let stopped=false;const timer=setInterval(async()=>{
-  try{const r=await fetch(`/api/screener/status?market=${market}`,{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'读取失败');if(stopped)return;setState(d);if(!['pending','running'].includes(d.job?.state))setBusy(false)}catch(e){if(!stopped){setError(e.message);setBusy(false)}}
- },2500);return()=>{stopped=true;clearInterval(timer)}},[busy,market]);
+ useEffect(()=>{requestVersion.current+=1;setState(null);setError('');setBusy(false);setPollJob(null)},[market]);
+ useEffect(()=>{if(!pollJob)return;let stopped=false;const timer=setInterval(async()=>{
+  try{const r=await fetch(`/api/screener/status?market=${market}`,{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'读取失败');if(stopped)return;if(d.job?.id!==pollJob)throw Error('补查任务已变更，请重新补查');setState(d);if(!['pending','running'].includes(d.job?.state)){setBusy(false);setPollJob(null)}}catch(e){if(!stopped){setError(e.message);setBusy(false);setPollJob(null)}}
+ },2500);return()=>{stopped=true;clearInterval(timer)}},[pollJob,market]);
  if(!BROKER_REFRESH_ENABLED)return null;
- async function refresh(){const requested=market;setError('');setBusy(true);try{
- const response=await fetch('/api/screener/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({market,symbols:rows.slice(0,50).map(r=>r.symbol)})});const data=await response.json();if(current.current!==requested)return;if(!response.ok)throw Error(data.error||'补查失败');setState(data);
- }catch(e){if(current.current===requested){setError(e.message);setBusy(false)}}}
+ async function refresh(){const requested=market,version=++requestVersion.current;setError('');setState(null);setPollJob(null);setBusy(true);try{
+ const response=await fetch('/api/screener/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({market,symbols:rows.slice(0,50).map(r=>r.symbol)})});const data=await response.json();if(current.current!==requested||requestVersion.current!==version)return;if(!response.ok)throw Error(data.error||'补查失败');setState(data);const pending=['pending','running'].includes(data.job?.state);setBusy(pending);setPollJob(pending?data.job.id:null);
+ }catch(e){if(current.current===requested&&requestVersion.current===version){setError(e.message);setBusy(false);setPollJob(null)}}}
  const records=state?.result?.rows||[];
  const num=(v)=>typeof v==='number'?v.toLocaleString(undefined,{maximumFractionDigits:3}):'—';
  return <Box sx={{mb:2,p:1.5,border:'1px solid',borderColor:'divider',borderRadius:2}}>
