@@ -11,6 +11,7 @@ export function cleanResult(result,job){
 }
 export async function screenerRoute(request,env){
  const url=new URL(request.url),path=url.pathname,db=env.DB;
+ if(path.startsWith('/api/screener/pipeline/'))return pipelineRoute(request,env);
  const json=(d,s=200)=>Response.json(d,{status:s,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  if(!db)return json({error:'扫描存储不可用'},503);
  const service=!request.headers.get('oai-authenticated-user-id');
@@ -45,6 +46,49 @@ export async function screenerRoute(request,env){
   let result;try{result=cleanResult(b.result,job)}catch{return json({error:'结果校验失败'},400)}
   const state=result.rows.length?(result.errors.length?'partial':'completed'):'failed';
   await db.prepare("UPDATE screener_jobs SET state=?,result=?,finished_at=? WHERE id=? AND state='running'").bind(state,JSON.stringify(result),now,b.id).run();return json({ok:true,state});
+ }
+ return json({error:'Not found'},404);
+}
+
+// Owner-private request queue. Only the local read-only runner can dispatch jobs.
+async function pipelineRoute(request,env){
+ const u=new URL(request.url),path=u.pathname,db=env.DB;
+ const json=(d,s=200)=>Response.json(d,{status:s,headers:{'Cache-Control':'no-store'}});
+ if(!db)return json({error:'扫描存储不可用'},503);
+ const service=!request.headers.get('oai-authenticated-user-id');
+ if(request.method==='POST'){
+  if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'需要 JSON'},415);
+  const origin=request.headers.get('origin');if(origin&&origin!==u.origin||!service&&!origin)return json({error:'需要同源请求'},403);
+ }
+ await db.prepare('CREATE TABLE IF NOT EXISTS screener_agent (id TEXT PRIMARY KEY,last_seen TEXT NOT NULL)').run();
+ await db.prepare('CREATE TABLE IF NOT EXISTS screener_pipeline (singleton INTEGER PRIMARY KEY CHECK(singleton=1),id TEXT NOT NULL,state TEXT NOT NULL,requested_at TEXT NOT NULL,updated_at TEXT NOT NULL,payload TEXT)').run();
+ const read=()=>db.prepare('SELECT * FROM screener_pipeline WHERE singleton=1').first();
+ const now=new Date().toISOString();
+ if(path.endsWith('/status')&&request.method==='GET'){
+  const job=await read(),agent=await db.prepare("SELECT last_seen FROM screener_agent WHERE id='local'").first();
+  return json({job:job?{...job,payload:job.payload?JSON.parse(job.payload):null}:null,agentOnline:!!agent&&Date.parse(agent.last_seen)>Date.now()-90000});
+ }
+ if(request.method!=='POST')return json({error:'Method not allowed'},405);
+ if(!path.endsWith('/request')&&!service)return json({error:'仅本机服务可调用'},403);
+ const raw=await request.text();if(raw.length>20000)return json({error:'请求过大'},413);
+ let b;try{b=JSON.parse(raw)}catch{return json({error:'JSON 无效'},400)}
+ if(path.endsWith('/request')){
+  const agent=await db.prepare("SELECT last_seen FROM screener_agent WHERE id='local'").first();
+  if(!agent||Date.parse(agent.last_seen)<Date.now()-90000)return json({error:'本机取数服务离线；请确认 Mac 已开机联网'},503);
+  const job=await read();if(job&&['pending','running','dispatched'].includes(job.state))return json({job},202);
+  if(job&&Date.parse(job.updated_at)>Date.now()-60000)return json({error:'请等待一分钟后重试'},429);
+  await db.prepare("INSERT INTO screener_pipeline VALUES(1,?,'pending',?,?,NULL) ON CONFLICT(singleton) DO UPDATE SET id=excluded.id,state='pending',requested_at=excluded.requested_at,updated_at=excluded.updated_at,payload=NULL WHERE screener_pipeline.state NOT IN ('pending','running','dispatched')").bind(crypto.randomUUID(),now,now).run();
+  return json({job:await read()},202);
+ }
+ if(path.endsWith('/agent')){
+  const claim=await db.prepare("UPDATE screener_pipeline SET state='running',updated_at=? WHERE singleton=1 AND state='pending' RETURNING *").bind(now).first();
+  const job=claim||await read();return json({job:job&&['running','dispatched'].includes(job.state)?{...job,payload:job.payload?JSON.parse(job.payload):null,operation:claim?'start':'status'}:null});
+ }
+ if(path.endsWith('/result')){
+  const job=await read();if(!job||job.id!==b.id||!['running','dispatched'].includes(job.state))return json({error:'任务已变更'},409);
+  const r=b.result;if(!r||!['running','dispatched','completed','failed'].includes(r.state)||r.runId!=null&&!/^\d+$/.test(r.runId))return json({error:'结果无效'},400);
+  const payload={runId:r.runId||null,state:r.state,url:r.runId?`https://github.com/alexanderhanboli/stock-screener/actions/runs/${r.runId}`:null,jobs:(r.jobs||[]).slice(0,12).map(j=>({name:String(j.name).slice(0,80),status:String(j.status).slice(0,40),conclusion:String(j.conclusion||'').slice(0,40)})),errors:(r.errors||job.payload&&JSON.parse(job.payload).errors||[]).slice(0,5).map(e=>String(e).slice(0,180))};
+  await db.prepare('UPDATE screener_pipeline SET state=?,updated_at=?,payload=? WHERE singleton=1 AND id=?').bind(r.state,now,JSON.stringify(payload),b.id).run();return json({ok:true});
  }
  return json({error:'Not found'},404);
 }

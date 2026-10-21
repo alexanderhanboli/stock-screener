@@ -19,3 +19,18 @@ test('on demand queue: heartbeat, owner request, claim, result, timeout identity
 });
 
 test('reported institutional ownership above 100 is retained instead of rejecting the batch',()=>{const job={market:'US',requested_at:now,symbols:'["AAPL"]'};const result=cleanResult({capturedAt:now,rows:[{symbol:'AAPL',institutional_ownership:110}],errors:[]},job);assert.equal(result.rows[0].institutional_ownership,110)});
+
+test('full pipeline: owner scope, offline recovery, deduplication, exact task and fixed run URL',async()=>{
+ const env={DB:database()};
+ assert.equal((await screenerRoute(request('pipeline/request',{},true),env)).status,503);
+ await screenerRoute(request('agent',{claim:false}),env);
+ const queued=await (await screenerRoute(request('pipeline/request',{},true),env)).json();
+ const duplicate=await (await screenerRoute(request('pipeline/request',{},true),env)).json();assert.equal(duplicate.job.id,queued.job.id);
+ assert.equal((await screenerRoute(request('pipeline/agent',{},true),env)).status,403);
+ const claimed=await (await screenerRoute(request('pipeline/agent',{}),env)).json();assert.equal(claimed.job.operation,'start');
+ const resumed=await (await screenerRoute(request('pipeline/agent',{}),env)).json();assert.equal(resumed.job.operation,'status');
+ assert.equal((await screenerRoute(request('pipeline/result',{id:'wrong',result:{state:'completed'}}),env)).status,409);
+ assert.equal((await screenerRoute(request('pipeline/result',{id:queued.job.id,result:{state:'running',runId:'123',url:'https://evil.example'}}),env)).status,200);
+ const status=await (await screenerRoute(new Request(origin+'/api/screener/pipeline/status'),env)).json();assert.equal(status.job.payload.url,'https://github.com/alexanderhanboli/stock-screener/actions/runs/123');
+ assert.equal((await screenerRoute(request('pipeline/result',{id:queued.job.id,result:{state:'completed',runId:'123'}}),env)).status,200);
+});

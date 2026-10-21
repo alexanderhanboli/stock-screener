@@ -1,4 +1,5 @@
 name: Static Site
+run-name: "日线扫描 · ${{ inputs.request_id || github.event_name }}"
 
 on:
   schedule:
@@ -12,6 +13,10 @@ on:
     - cron: '30 10 * * 1-5'
   workflow_dispatch:
     inputs:
+      request_id:
+        description: Private Site request identifier
+        type: string
+        default: manual
       market_group:
         description: 'Which market group to build'
         type: choice
@@ -39,6 +44,9 @@ concurrency:
   # evict a pending one, e.g. a manual dispatch dropping the queued US run.
   queue: max
   cancel-in-progress: false
+
+env:
+  GITHUB_DATA_REPOSITORY: ${{ github.repository }}
 
 permissions:
   actions: write
@@ -248,7 +256,7 @@ jobs:
       # ignore these (the policy looks up settings.<provider>_<key>_<market>).
       YFINANCE_BATCH_SIZE_IN: "25"
       YFINANCE_BATCH_RATE_LIMIT_IN: "0.1"
-      OPTIONS_ANALYTICS_ENABLED: ${{ matrix.market == 'US' && 'true' || 'false' }}
+      OPTIONS_ANALYTICS_ENABLED: "false"
       # Opt-in price-stage checkpoint (#502): repository variable JSON of market
       # to minutes after export start, e.g. {"US": 210}. Unlisted markets are
       # unchanged. Rollback: delete the variable.
@@ -312,6 +320,16 @@ jobs:
           python -m app.scripts.sync_daily_price_bundle_from_github \
             --market "${{ matrix.market }}" \
             --allow-stale
+
+      - name: Import optional broker benchmark baseline
+        if: ${{ matrix.market == 'US' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release download daily-price-data --repo "${{ github.repository }}" --pattern hengyuan-benchmark-us.json --dir /tmp/broker-benchmark; then
+            cd backend
+            PYTHONPATH=. python ../integrations/hengyuan/import_benchmark.py /tmp/broker-benchmark/hengyuan-benchmark-us.json
+          fi
 
       - name: Resume price-stage checkpoint
         if: ${{ env.PRICE_STAGE_DEADLINE_MINUTES != '' }}
