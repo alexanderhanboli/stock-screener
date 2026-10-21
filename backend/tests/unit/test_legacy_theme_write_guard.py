@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
 import httpx
 import pytest
 from sqlalchemy import func, select, text
@@ -54,13 +52,11 @@ GUARDED_TASKS = [
     (theme_discovery_tasks.promote_candidate_themes, ()),
     (theme_discovery_tasks.apply_lifecycle_policies, ()),
     (theme_discovery_tasks.infer_theme_relationships, ()),
-    (theme_discovery_tasks.validate_themes, ()),
     (theme_discovery_tasks.check_alerts, ()),
     (theme_discovery_tasks.run_full_pipeline, ()),
     (theme_discovery_tasks.consolidate_themes, ()),
     (theme_discovery_tasks.compute_l1_metrics, ()),
     (theme_discovery_tasks.run_taxonomy_assignment, ()),
-    (theme_discovery_tasks.recompute_l1_centroid_embeddings, ()),
     (live_attachment_tasks.refresh_attachment_themes, ([],)),
     (theme_intelligence_tasks.refresh_groups, ()),
 ]
@@ -412,47 +408,6 @@ async def test_failed_dispatch_after_cutover_is_recorded_as_failed(db_session, m
     run = db_session.query(ThemePipelineRun).one()
     assert run.status == "failed"
     assert "broker down" in run.error_message
-
-
-def _load(path):
-    import importlib
-    import importlib.util
-    from pathlib import Path
-
-    if path.startswith("app/"):  # a package module (e.g. one defining dataclasses)
-        return importlib.import_module(path[:-3].replace("/", "."))
-    full = Path(__file__).resolve().parents[2] / path
-    spec = importlib.util.spec_from_file_location(full.stem, full)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GUARDED_CLIS = [
-    ("scripts/backfill_l1_taxonomy.py", []),
-    ("scripts/backfill_silent_failures.py", []),
-    ("scripts/backfill_theme_aliases.py", ["--yes"]),
-    ("app/scripts/repair_jp_alpha_universe_symbols.py", ["--apply"]),
-]
-
-
-@pytest.mark.parametrize("path,argv", GUARDED_CLIS, ids=[p.rsplit("/", 1)[-1] for p, _ in GUARDED_CLIS])
-def test_cli_refuses_to_write_under_economic_authority(db_session, monkeypatch, capsys, path, argv):
-    _authority(db_session, "economic")
-    module = _load(path)
-    for name in ("initialize_process_runtime_services",):
-        if hasattr(module, name):
-            monkeypatch.setattr(module, name, lambda: None)
-    if hasattr(module, "get_session_factory"):
-        monkeypatch.setattr(module, "get_session_factory", lambda: lambda: db_session)
-    monkeypatch.setattr(sys, "argv", [path, *argv])
-
-    with pytest.raises(SystemExit) as exit_info:
-        module.main()
-
-    assert exit_info.value.code == 1
-    assert "STOP:" in capsys.readouterr().err
-    assert _clusters(db_session) == 1
 
 
 def test_content_storage_reset_is_refused_under_economic_authority(db_session, monkeypatch):

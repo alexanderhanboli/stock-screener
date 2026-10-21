@@ -95,7 +95,6 @@ celery_app = Celery(
         'app.tasks.theme_intelligence_tasks',
         'app.tasks.universe_tasks',  # Stock universe management tasks
         'app.tasks.daily_market_pipeline_tasks',  # Per-market daily refresh + scan pipeline
-        'app.tasks.telemetry_tasks',  # Weekly telemetry governance audit (asia.10.4)
         'app.tasks.runtime_bootstrap_tasks',  # Local-default first-run bootstrap orchestration
         'app.tasks.static_export_tasks',  # Scheduled static-data bundle export
         'app.tasks.task_history_tasks',  # Closes runs no task signal reported
@@ -396,22 +395,12 @@ from .tasks.market_queues import (
 )
 
 _MARKET_SCOPED_DATA_FETCH_TASKS = (
-    'app.tasks.cache_tasks.prewarm_scan_cache',
-    'app.tasks.cache_tasks.prewarm_all_active_symbols',
     'app.tasks.cache_tasks.weekly_full_refresh',
     'app.tasks.cache_tasks.warm_spy_cache',
-    'app.tasks.cache_tasks.warm_top_symbols',
     'app.tasks.cache_tasks.force_refresh_stale_intraday',
     'app.tasks.cache_tasks.smart_refresh_cache',
     'app.tasks.cache_tasks.retry_failed_price_symbols',
-    'app.tasks.cache_tasks.daily_cache_warmup',
-    'app.tasks.cache_tasks.auto_refresh_after_close',
     'app.tasks.fundamentals_tasks.refresh_all_fundamentals',
-    'app.tasks.fundamentals_tasks.refresh_all_fundamentals_hybrid',
-    'app.tasks.fundamentals_tasks.refresh_symbol_fundamentals',
-    'app.tasks.fundamentals_tasks.populate_initial_cache',
-    'app.tasks.fundamentals_tasks.refresh_fundamentals_yfinance_only',
-    'app.tasks.fundamentals_tasks.refresh_symbols_hybrid',
     'app.tasks.universe_tasks.refresh_stock_universe',
     'app.tasks.universe_tasks.refresh_official_market_universe',
     'app.tasks.universe_tasks.refresh_sp500_membership',
@@ -810,19 +799,6 @@ def _build_cache_warmup_beat_schedule(enabled_markets: list[str]) -> dict:
             'task': 'app.tasks.daily_market_pipeline_tasks.renew_daily_market_pipeline_claims',
             'schedule': float(PIPELINE_CHAIN_HEARTBEAT_SECONDS),
             'options': {'queue': 'celery', 'expires': PIPELINE_CHAIN_HEARTBEAT_SECONDS - 10},
-        },
-
-        # Weekly telemetry governance audit (bead asia.10.4).
-        # Sunday 5 AM ET — after weekly-full-refresh (2 AM) and universe refresh
-        # (3 AM) have emitted their final telemetry for the week. Produces a signed report at
-        # data/governance/telemetry_audit/YYYY-MM-DD.{json,md,sha256}.
-        'weekly-telemetry-governance-audit': {
-            'task': 'app.tasks.telemetry_tasks.weekly_telemetry_audit',
-            'schedule': crontab(
-                hour=5,
-                minute=0,
-                day_of_week=0,  # Sunday
-            ),
         },
     }
 

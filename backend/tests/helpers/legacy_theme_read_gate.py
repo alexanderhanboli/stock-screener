@@ -64,8 +64,6 @@ PREDICATE_MARKERS = frozenset({
 RAISING_MARKERS = frozenset({
     "app.api.v1.themes_taxonomy._reject_economic_mode",
     "app.api.v1.themes_queries._economic_endpoint_required",
-    "app.services.legacy_theme_write_guard.ensure_legacy_theme_writes_allowed",
-    "app.services.legacy_theme_write_guard.exit_if_legacy_theme_writes_blocked",
 })
 CONTEXT_MARKERS = frozenset({  # fenced writers: refused outside legacy write modes (#472)
     "app.services.theme_discovery_service.ThemeDiscoveryService._fenced_legacy_mutation",
@@ -182,8 +180,6 @@ class Index:
         )
         for path in root.rglob("*.py"):
             parts = path.relative_to(root.parent).with_suffix("").parts
-            if "db_migrations" in parts:
-                continue  # historical schema migrations
             name = ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
             self._load(name, path, is_package=parts[-1] == "__init__")
         self._module_scopes: dict[str, dict[str, str]] = {}

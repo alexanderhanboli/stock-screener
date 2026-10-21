@@ -69,9 +69,9 @@ Health endpoints:
 
 Primary route groups:
 
-- Core market data: `stocks`, `technical`, `fundamentals`, `universe`, `ticker-validation`
+- Core market data: `stocks`, `fundamentals`, `universe`, `ticker-validation`
 - Scanning: `scans`, `features`, `filter-presets`, `strategy-profiles`
-- Daily/market views: `market-scan`, `breadth`, `groups`, `validation`, `digest`
+- Daily/market views: `market-scan`, `breadth`, `groups`, `validation`
 - User data: `user-watchlists`, `user-themes` when themes are enabled
 - Operations: `cache`, `data-fetch`, `tasks`, `operations`, `telemetry`
 - Feature-gated: `themes`, `assistant`, `tasks`, `config`
@@ -146,13 +146,13 @@ The detailed producer/store/consumer view lives in [data-pipeline.html](../docs/
 
 - Assistant: `services/assistant_gateway_service.py` calls the Hermes sidecar (`HERMES_API_BASE`, optional `HERMES_API_KEY`).
 - Theme discovery: LLM provider adapters live under `services/llm/` and related theme services/tasks.
-- Web research: optional Tavily/Serper keys.
+- Web research: optional `TAVILY_API_KEY` / `SERPER_API_KEY`, read by the Hermes sidecar, not the backend.
 
 Feature gates are controlled by `FEATURE_THEMES`, `FEATURE_CHATBOT`, and `FEATURE_TASKS`.
 
 ## Database
 
-PostgreSQL is the supported database for local and Docker deployments. Startup runs Alembic migrations via `app/infra/db/migrations.py`. Legacy idempotent repair scripts remain under `app/db_migrations/` for older installs only.
+PostgreSQL is the supported database for local and Docker deployments. Startup runs Alembic migrations via `app/infra/db/migrations.py`. It refuses a database that has tables but no `alembic_version` table; start release v1.6.0 against it once first (see `docs/INSTALL_DOCKER.md`).
 
 Common table families:
 
