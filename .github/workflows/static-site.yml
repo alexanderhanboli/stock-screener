@@ -93,10 +93,10 @@ jobs:
           MARKET_GROUP: ${{ github.event.inputs.market_group }}
           REPAIR_PRICE_HISTORY_MARKET: ${{ github.event.inputs.repair_price_history_market }}
         run: |
-          ASIA='["HK","IN","JP","KR","TW","CN","SG","MY","AU"]'
+          ASIA='["HK","CN"]'
           CN_ONLY='["CN"]'
-          US='["US","CA","DE"]'
-          ALL='["US","HK","IN","JP","KR","TW","CN","CA","DE","SG","AU","MY"]'
+          US='["US"]'
+          ALL='["US","HK","CN"]'
 
           if [ "$EVENT_NAME" = "schedule" ]; then
             case "$SCHEDULE" in

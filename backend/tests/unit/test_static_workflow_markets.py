@@ -45,29 +45,30 @@ def _static_site_market_group(name: str) -> list[str]:
     return list(json.loads(match.group(1)))
 
 
-def test_static_site_all_group_and_weekly_reference_cover_supported_markets():
-    expected = list(market_registry.supported_market_codes())
+def test_static_site_all_group_and_weekly_reference_cover_fork_scope():
+    expected = ["US", "HK", "CN"]
+    assert set(expected) <= set(market_registry.supported_market_codes())
 
-    # The dispatch "all" group must stay in lockstep with the registry so a
-    # manual full rebuild covers every supported market in the canonical order.
+    # The fork deliberately publishes a subset of the supported registry.
+    # Daily and weekly jobs must use the same user-selected market scope.
     assert _static_site_market_group("ALL") == expected
     assert _weekly_reference_matrix_markets(".github/workflows/weekly-reference-data.yml") == expected
 
 
-def test_static_site_schedule_groups_partition_supported_markets():
+def test_static_site_schedule_groups_partition_fork_scope():
     asia = _static_site_market_group("ASIA")
     us = _static_site_market_group("US")
     all_markets = _static_site_market_group("ALL")
 
     # The two scheduled groups must contain the intended exact markets...
-    assert asia == ["HK", "IN", "JP", "KR", "TW", "CN", "SG", "MY", "AU"]
-    assert us == ["US", "CA", "DE"]
+    assert asia == ["HK", "CN"]
+    assert us == ["US"]
 
     # ...and together partition the full market set (disjoint + exhaustive), so
     # every supported market is published by exactly one scheduled run.
     assert set(asia).isdisjoint(us)
     assert set(asia) | set(us) == set(all_markets)
-    assert set(all_markets) == set(market_registry.supported_market_codes())
+    assert all_markets == ["US", "HK", "CN"]
 
 
 def test_static_site_manual_dispatch_can_run_china_only():

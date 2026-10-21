@@ -149,18 +149,14 @@ export const useStaticGroupsRRG = (marketEntry) => {
   }));
 };
 
+const configuredMarkets = (import.meta.env.VITE_STATIC_MARKETS || '').split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
 export const getStaticSupportedMarkets = (manifest) => {
-  if (Array.isArray(manifest?.supported_markets) && manifest.supported_markets.length > 0) {
-    return manifest.supported_markets;
-  }
-  if (manifest?.default_market) {
-    return [manifest.default_market];
-  }
-  return [STATIC_DEFAULT_MARKET];
+  const available = manifest?.supported_markets?.length ? manifest.supported_markets : [manifest?.default_market || STATIC_DEFAULT_MARKET];
+  return configuredMarkets.length ? available.filter(m=>configuredMarkets.includes(m)) : available;
 };
 
 export const getStaticUnavailableMarkets = (manifest) => (
-  Array.isArray(manifest?.unavailable_markets) ? manifest.unavailable_markets : []
+  Array.isArray(manifest?.unavailable_markets) ? manifest.unavailable_markets.filter(m=>!configuredMarkets.length||configuredMarkets.includes(m)) : []
 );
 
 export const resolveStaticMarketEntry = (manifest, selectedMarket) => {

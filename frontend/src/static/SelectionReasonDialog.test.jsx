@@ -1,0 +1,5 @@
+import {fireEvent,render,screen} from '@testing-library/react';
+import {describe,it,expect,vi} from 'vitest';
+import SelectionReasonDialog from './SelectionReasonDialog';
+import {createEmptyExpression} from '../features/scan/filterExpressionModel';
+describe('reason dialog',()=>{it('opens with original evidence and closes without network/model requests',()=>{const fetch=vi.spyOn(globalThis,'fetch');const close=vi.fn();render(<SelectionReasonDialog row={{symbol:'AAPL',composite_score:58.8,passes_template:false,volume:200000000,currency:'USD'}} context={{expression:createEmptyExpression([{kind:'range',field:'volume',min:100000000}]),asOfDate:'2026-10-19'}} onClose={close}/>);expect(screen.getByRole('dialog')).toBeVisible();expect(screen.getByText(/日线截至 2026-10-19/)).toBeVisible();expect(screen.getByText(/实际 200,000,000 USD/)).toBeVisible();expect(screen.getByText(/尚未通过完整/)).toBeVisible();expect(fetch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'关闭说明'}));expect(close).toHaveBeenCalledOnce();fetch.mockRestore()})});

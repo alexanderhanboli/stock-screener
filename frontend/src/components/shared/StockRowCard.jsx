@@ -36,6 +36,7 @@ export default function StockRowCard({
   sortNote = null,
   meta = null,
   onOpen = null,
+  openLabel = null,
 }) {
   const shown = metric || { label: null, value: oneDecimal(row[scoreField]), name: 'Score' };
   const change = Number(row.price_change_1d);
@@ -66,7 +67,7 @@ export default function StockRowCard({
               component="button"
               type="button"
               onClick={onOpen}
-              aria-label={`Open ${row.symbol} chart`}
+              aria-label={openLabel || `Open ${row.symbol} chart`}
               sx={{
                 all: 'unset',
                 // The ticker keeps its width beside the action icons.

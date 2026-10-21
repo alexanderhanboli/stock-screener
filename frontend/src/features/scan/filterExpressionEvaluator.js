@@ -1,4 +1,4 @@
-function rowValue(row, field) {
+export function rowValue(row, field) {
   if (field === 'price') return row.price ?? row.current_price;
   if (field === 'listing_search') return `${row.symbol || ''} ${row.company_name || ''}`.trim();
   if (field === 'listing_aware_volume') {

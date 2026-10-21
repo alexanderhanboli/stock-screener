@@ -46,6 +46,8 @@ import {
   filterStateReducer,
   selectQuickFilters,
 } from '../../features/scan/filterState';
+import BrokerRefreshPanel from '../BrokerRefreshPanel';
+import SelectionReasonDialog from '../SelectionReasonDialog';
 import { PageSkeleton } from '../../components/common/LoadingSkeletons';
 
 const HYDRATION_BATCH_SIZE = 2;
@@ -88,6 +90,8 @@ function StaticScanPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [selectedChartSymbol, setSelectedChartSymbol] = useState(null);
+  const [reasonSymbol, setReasonSymbol] = useState(null);
+  useEffect(()=>setReasonSymbol(null),[selectedMarket]);
   const [hydrationState, setHydrationState] = useState({
     status: 'idle',
     rows: [],
@@ -355,6 +359,7 @@ function StaticScanPage() {
 
   return (
     <Box>
+      <BrokerRefreshPanel market={selectedMarket} rows={pagedRows} />
       <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}>
         Daily Scan
       </Typography>
@@ -445,6 +450,7 @@ function StaticScanPage() {
           setSortOrder(nextSortOrder);
           setPage(1);
         }}
+        onOpenReason={setReasonSymbol}
         onOpenChart={chartsAvailable ? handleOpenChart : undefined}
         loading={false}
         showActions={chartsAvailable}
@@ -452,6 +458,13 @@ function StaticScanPage() {
         isChartEnabled={isChartEnabled}
         sortingEnabled={hydrationComplete}
         showOpportunityState={showOpportunityState}
+      />
+
+      <SelectionReasonDialog
+        row={reasonSymbol ? sortedRows.find(r=>r.symbol===reasonSymbol) : null}
+        onClose={()=>setReasonSymbol(null)}
+        onOpenChart={reasonSymbol && isChartEnabled(reasonSymbol) ? (symbol)=>{setReasonSymbol(null);handleOpenChart(symbol)} : null}
+        context={{expression:appliedExpression,asOfDate:scanManifestQuery.data.as_of_date,screenName:presetScreens?.find(s=>s.id===activeScreenId)?.name,rank:reasonSymbol ? sortedRows.findIndex(r=>r.symbol===reasonSymbol)+1 : null,sortBy,sortOrder}}
       />
 
       <StaticChartViewerModal
