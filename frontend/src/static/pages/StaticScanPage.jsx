@@ -354,7 +354,9 @@ function StaticScanPage() {
   }
 
   if (manifestQuery.isError || scanManifestQuery.isError) {
-    return <Alert severity="error">Failed to load the static scan dataset.</Alert>;
+    return import.meta.env.VITE_OWN_PIPELINE === 'true'
+      ? <Alert severity="info">暂时无法读取我的已发布结果。首次扫描需等待后台计算与发布完成；已有结果时，可点击上方“载入我的最新结果”重试。原作者快照可通过页面顶部切换查看。</Alert>
+      : <Alert severity="error">Failed to load the static scan dataset.</Alert>;
   }
 
   return (
